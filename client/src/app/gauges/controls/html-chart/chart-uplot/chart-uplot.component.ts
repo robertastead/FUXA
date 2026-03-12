@@ -7,7 +7,7 @@ import { Utils } from '../../../../_helpers/utils';
 import { TranslateService } from '@ngx-translate/core';
 
 import { DaterangeDialogComponent } from '../../../../gui-helpers/daterange-dialog/daterange-dialog.component';
-import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { MatDialog as MatDialog } from '@angular/material/dialog';
 import { Subject, from, interval, merge, of, timer } from 'rxjs';
 import { catchError, concatMap, delay, finalize, takeUntil, tap } from 'rxjs/operators';
 import { ScriptService } from '../../../../_services/script.service';
@@ -35,7 +35,7 @@ export class ChartUplotComponent implements OnInit, AfterViewInit, OnDestroy {
     reloadActive = false;
     private lastDaqQuery = new DaqQuery();
     rangeTypeValue = Utils.getEnumKey(ChartRangeType, ChartRangeType.last8h);
-    rangeType: ChartRangeType;
+    rangeType: typeof ChartRangeType;
     range: ZoomRangeType = { from: Date.now(), to: Date.now(), zoomStep: 0 };
     mapData: MapDataDictionary = {};
     pauseMemoryValue: ValueDictionary = {};
@@ -63,6 +63,7 @@ export class ChartUplotComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!this.options) {
             this.options = ChartUplotComponent.DefaultOptions();
         }
+        this.rangeType = ChartRangeType;
     }
 
     ngAfterViewInit() {
@@ -88,6 +89,10 @@ export class ChartUplotComponent implements OnInit, AfterViewInit, OnDestroy {
         } catch (e) {
             console.error(e);
         }
+    }
+
+    getRangeTypeLabel() {
+        return ChartRangeType[this.rangeTypeValue] || this.rangeTypeValue;
     }
 
     onClick(evStep: string) {
@@ -118,6 +123,7 @@ export class ChartUplotComponent implements OnInit, AfterViewInit, OnDestroy {
             this.zoomSize = 0;
         }
         if (ev) {
+            this.rangeTypeValue = ev;
             this.range.from = Date.now();
             this.range.to = Date.now();
             let timeStep = ChartRangeConverter.ChartRangeToHours(ev) * 60 * 60;
@@ -134,6 +140,9 @@ export class ChartUplotComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     onDateRange() {
+        if (this.isEditor) {
+            return;
+        }
         let dialogRef = this.dialog.open(DaterangeDialogComponent, {
             panelClass: 'light-dialog-container'
         });

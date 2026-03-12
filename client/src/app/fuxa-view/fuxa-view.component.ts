@@ -28,7 +28,7 @@ import { HmiService } from '../_services/hmi.service';
 import { EndPointApi } from '../_helpers/endpointapi';
 import { HtmlSelectComponent } from '../gauges/controls/html-select/html-select.component';
 import { FuxaViewDialogComponent, FuxaViewDialogData } from './fuxa-view-dialog/fuxa-view-dialog.component';
-import { LegacyDialogPosition as DialogPosition, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { DialogPosition as DialogPosition, MatDialog as MatDialog } from '@angular/material/dialog';
 import { WebcamPlayerDialogComponent, WebcamPlayerDialogData } from '../gui-helpers/webcam-player/webcam-player-dialog/webcam-player-dialog.component';
 import { DevicesUtils, PlaceholderDevice, Tag } from '../_models/device';
 import { LanguageService } from '../_services/language.service';
@@ -858,7 +858,13 @@ export class FuxaViewComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private nextZIndex(): number {
-        return ++this.zIndexCounter;
+        const targetCards = this.parentcards ?? this.cards;
+        const maxCurrentZIndex = targetCards.reduce((max, currentCard) => {
+            const cardZIndex = Number(currentCard?.zIndex ?? 0);
+            return cardZIndex > max ? cardZIndex : max;
+        }, 0);
+        this.zIndexCounter = Math.max(this.zIndexCounter, maxCurrentZIndex) + 1;
+        return this.zIndexCounter;
     }
 
     onOpenCard(id: string, event: PointerEvent | TouchEvent | any, viewref: string, options: any = {}) {
@@ -900,7 +906,7 @@ export class FuxaViewComponent implements OnInit, AfterViewInit, OnDestroy {
         card.disableDefaultClose = options?.hideClose;
         card.sourceDeviceId = options?.sourceDeviceId;
         card.zIndex = this.nextZIndex();
-
+        console.log('index', card.zIndex);
         if (this.parentcards) {
             this.parentcards.push(card);
         } else {

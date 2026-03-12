@@ -24,6 +24,7 @@ module.exports = {
     // - 'common': Less detailed than 'combined', omitting the referrer and user-agent.
     // - 'short': Shorter format that includes the remote address and request details.
     // - 'tiny': Minimalist format, showing just the method, URL, status, response length, and response time.
+	// - 'none': Completely disables HTTP request logging to clean the console for custom debugging scripts and reduce I/O overhead.
     //
     // Default Value:
     // - 'combined': By default, logApiLevel is set to 'combined', providing detailed logs suitable for thorough tracking and analysis.
@@ -91,8 +92,10 @@ module.exports = {
 
     // Used to enable security, authentication and authorization and crypt Token
     //secureEnabled: true,
-    //secretCode: 'frangoteam751',
-    //tokenExpiresIn: '1h'  // '1h'=1hour, 60=60seconds, '1d'=1day
+    //secretCode: '<set-a-strong-random-secret>',
+    //tokenExpiresIn: '1h',  // '1h'=1hour, 60=60seconds, '1d'=1day
+    //enableRefreshCookieAuth: false, // if true, use refresh token HttpOnly cookie flow
+    //refreshTokenExpiresIn: '7d' // '7d'=7days, 12h=12hours, 3600=3600seconds
 
     // Heartbeat interval in seconds (1-20)
     heartbeatIntervalSec: 10,
@@ -108,4 +111,13 @@ module.exports = {
     webcamSnapShotsRetain: 7,
 
     swaggerEnabled: false,
+
+    nodeRedEnabled: false,
+
+    // Node-RED access mode: "secure" (auth required) or "legacy-open" (no auth)
+    nodeRedAuthMode: "secure",
+
+    // Node-RED: allow unsafe stdlib modules in functionGlobalContext
+    // WARNING: Enabling this exposes modules like child_process/net to flows.
+    nodeRedUnsafeModules: false,
 }

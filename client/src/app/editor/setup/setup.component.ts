@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { NavigationExtras, Router } from '@angular/router';
-import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
+import { MatDialog as MatDialog, MatDialogRef as MatDialogRef } from '@angular/material/dialog';
 
 import { ProjectService } from '../../_services/project.service';
 import { AppService } from '../../_services/app.service';
@@ -130,6 +130,8 @@ export class SetupComponent {
     isToDisable(section: string) {
         if (clientOnlyToDisable.indexOf(section) !== -1) {
             return this.appService.isClientApp;
+        } else if (section === 'node-red') {
+            return !(this.appService.nodeRedEnabled() && !this.appService.isClientApp);
         }
         return false;
     }

@@ -5,8 +5,14 @@ export class AppSettings {
     uiPort = 1881;
     /** Security access to enable user and authentication */
     secureEnabled = false;
+    /** Secret code to sign/verify tokens */
+    secretCode = '';
     /** Expiration of authanticated token (15m)*/
     tokenExpiresIn = '1h';
+    /** Enable refresh token HttpOnly cookie flow */
+    enableRefreshCookieAuth = false;
+    /** Expiration of refresh token (default 7d) */
+    refreshTokenExpiresIn?: string;
     /** authentication are valid only for edit mode */
     secureOnlyEditor = false;
     /** Broadcast all tags, without check the frontend views */
@@ -23,6 +29,12 @@ export class AppSettings {
     logFull = false;
     /** User role enabled (default group) */
     userRole = false;
+    /** Enable Node-Red */
+    nodeRedEnabled = true;
+    /** Node-RED access mode: secure | legacy-open */
+    nodeRedAuthMode = 'secure';
+    /** Enable Swagger */
+    swaggerEnabled = false;
 }
 
 export class SmtpSettings {
@@ -52,6 +64,9 @@ export class DaqStore {
     type = DaqStoreType.SQlite;
     varsion?: string;
     url?: string;
+    host = '127.0.0.1';
+    tableName = 'meters';
+    configurationString = 'http::addr=localhost:9000;';
     organization?: string;
     credentials?: StoreCredentials;
     bucket?: string;
@@ -62,6 +77,9 @@ export class DaqStore {
         if (daqstore) {
             this.type = daqstore.type;
             this.url = daqstore.url;
+            this.host = daqstore.host;
+            this.tableName = daqstore.tableName || 'meters';
+            this.configurationString = daqstore.configurationString;
             this.organization = daqstore.organization;
             this.credentials = daqstore.credentials;
             this.bucket = daqstore.bucket;
@@ -72,6 +90,7 @@ export class DaqStore {
 
     isEquals(store: DaqStore) {
         if (this.type === store.type && this.bucket === store.bucket && this.url === store.url &&
+            this.host === store.host && this.tableName === store.tableName && this.configurationString === store.configurationString &&
             this.organization === store.organization && this.database === store.database &&
             (this.credentials && StoreCredentials.isEquals(this.credentials, store.credentials)) && this.retention === store.retention) {
             return true;
@@ -103,6 +122,7 @@ export enum DaqStoreType {
     influxDB = 'influxDB',
     influxDB18 = 'influxDB 1.8',
     TDengine = 'TDengine' ,
+    questDB = 'questDB',
 }
 
 export enum influxDBVersionType {

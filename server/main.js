@@ -18,8 +18,6 @@ const authJwt = require('./api/jwt-helper');
 
 const express = require('express');
 const app = express();
-const swaggerUi = require('swagger-ui-express');
-const YAML = require('yamljs');
 
 var server;
 var settingsFile;
@@ -149,6 +147,15 @@ try {
         if (mysettings.tokenExpiresIn) {
             settings.tokenExpiresIn = mysettings.tokenExpiresIn;
         }
+        if (!utils.isNullOrUndefined(mysettings.enableRefreshCookieAuth)) {
+            settings.enableRefreshCookieAuth = mysettings.enableRefreshCookieAuth;
+        }
+        if (mysettings.refreshTokenExpiresIn) {
+            settings.refreshTokenExpiresIn = mysettings.refreshTokenExpiresIn;
+        }
+        if (mysettings.secretCode) {
+            settings.secretCode = mysettings.secretCode;
+        }
         if (mysettings.smtp) {
             settings.smtp = mysettings.smtp;
         }
@@ -170,9 +177,27 @@ try {
         if (!utils.isNullOrUndefined(mysettings.userRole)) {
             settings.userRole = mysettings.userRole;
         }
+        if (!utils.isNullOrUndefined(mysettings.nodeRedEnabled)) {
+            settings.nodeRedEnabled = mysettings.nodeRedEnabled;
+        }
+        if (!utils.isNullOrUndefined(mysettings.nodeRedAuthMode)) {
+            settings.nodeRedAuthMode = mysettings.nodeRedAuthMode;
+        }
+        if (!utils.isNullOrUndefined(mysettings.swaggerEnabled)) {
+            settings.swaggerEnabled = mysettings.swaggerEnabled;
+        }
+        if (mysettings.nodeRedEnabled === true && utils.isNullOrUndefined(mysettings.nodeRedAuthMode)) {
+            settings.nodeRedAuthMode = 'legacy-open';
+        }
     }
 } catch (err) {
     logger.error('Error loading user settings file: ' + userSettingsFile)
+}
+
+// Ensure secure mode never runs with an empty/static-known JWT secret.
+if (settings.secureEnabled && !settings.secretCode) {
+    settings.secretCode = utils.generateSecretCode();
+    logger.warn('Generated a random JWT secret in memory because secureEnabled=true and secretCode was missing. Persist it in settings for stable sessions across restarts.');
 }
 
 // Check logger
@@ -243,6 +268,10 @@ const io = socketIO(server, {
 
 // Check settings value
 var www = path.resolve(__dirname, '../client/dist');
+if (!fs.existsSync(www)) {      // compatibility with docker/npm/electron
+    www = path.resolve(__dirname, './dist');
+}
+
 settings.httpStatic = settings.httpStatic || www;
 
 if (parsedArgs.port !== undefined) {
@@ -304,10 +333,13 @@ const allowCrossDomain = function (req, res, next) {
 
     if (isOriginAllowed(origin)) {
         res.header('Access-Control-Allow-Origin', origin || '*');
+        if (settings.enableRefreshCookieAuth) {
+            res.header('Access-Control-Allow-Credentials', 'true');
+        }
     }
 
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'x-access-token, x-auth-user, Origin, Content-Type, Accept');
+    res.header('Access-Control-Allow-Headers', 'x-access-token, x-auth-user, Origin, Content-Type, Accept, Skip-Auth, Skip-Error');
 
 
     if (req.method === 'OPTIONS') {
@@ -331,30 +363,49 @@ app.use('/_widgets', express.static(settings.widgetsFileDir));
 app.use('/snapshots', express.static(settings.webcamSnapShotsDir))
 
 var accessLogStream = fs.createWriteStream(settings.logDir + '/api.log', { flags: 'a' });
-app.use(morgan('combined', {
-    stream: accessLogStream,
-    skip: function (req, res) { return res.statusCode < 400 }
-}));
+if (runtime.settings.logApiLevel !== 'none') {
+	app.use(morgan('combined', {
+		stream: accessLogStream,
+		skip: function (req, res) { return res.statusCode < 400 }
+	}));
 
-app.use(morgan('dev', {
-    skip: function (req, res) {
-        return res.statusCode < 400
-    }, stream: process.stderr
-}));
+	app.use(morgan('dev', {
+		skip: function (req, res) {
+			return res.statusCode < 400
+		}, stream: process.stderr
+	}));
 
-app.use(morgan('dev', {
-    skip: function (req, res) {
-        return res.statusCode >= 400
-    }, stream: process.stdout
-}));
+	app.use(morgan('dev', {
+		skip: function (req, res) {
+			return res.statusCode >= 400
+		}, stream: process.stdout
+	}));
+}
+
+function mountSwaggerIfEnabled() {
+    const swaggerEnabled = settings.swagger || settings.swaggerEnabled;
+    if (!swaggerEnabled) return;
+
+    let swaggerUi;
+    let YAML;
+    try {
+        swaggerUi = require('swagger-ui-express');
+        YAML = require('yamljs');
+    } catch (err) {
+        if (err && err.code !== 'MODULE_NOT_FOUND') {
+            throw err;
+        }
+        logger.warn('[Swagger] Enabled but optional dependencies are missing; skipping /api-docs. Install swagger-ui-express and yamljs to enable it.');
+        return;
+    }
+
+    const swaggerDocument = YAML.load(path.join(__dirname, 'docs', 'openapi.yaml'));
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+}
 
 // Swagger API Docs (mounted on main app so it isn't intercepted by optional integrations)
 try {
-    const swaggerEnabled = settings.swagger || settings.swaggerEnabled;
-    if (swaggerEnabled) {
-        const swaggerDocument = YAML.load(path.join(__dirname, 'docs', 'openapi.yaml'));
-        app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-    }
+    mountSwaggerIfEnabled();
 } catch (err) {
     logger.warn('Swagger UI failed to initialize', err);
 }
@@ -389,7 +440,10 @@ function getListenPath() {
     return listenPath;
 }
 
-const { mountNodeRedIfInstalled } = require('./integrations/node-red');
+let mountNodeRedIfInstalled;
+if (settings.nodeRedEnabled) {
+    ({ mountNodeRedIfInstalled } = require('./integrations/node-red'));
+}
 
 // Start FUXA
 function startFuxa() {
@@ -410,10 +464,14 @@ function startFuxa() {
             });
 
             // Mount Node-RED if present; never block FUXA if it fails
-            try {
-                await mountNodeRedIfInstalled({ app, server, settings, runtime, logger, authJwt, events });
-            } catch (e) {
-                logger.warn('[Node-RED] Failed to initialize, continuing without it.', e);
+            if (settings.nodeRedEnabled && typeof mountNodeRedIfInstalled === 'function') {
+                try {
+                    await mountNodeRedIfInstalled({ app, server, settings, runtime, logger, authJwt, events });
+                } catch (e) {
+                    logger.warn('[Node-RED] Failed to initialize, continuing without it.', e);
+                }
+            } else if (settings.nodeRedEnabled) {
+                logger.warn('[Node-RED] Enabled but integration not available; continuing without it.');
             }
 
             if (settings.disableServer !== false) {

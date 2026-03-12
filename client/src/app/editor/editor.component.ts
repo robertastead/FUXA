@@ -1,7 +1,7 @@
 ﻿/* eslint-disable @angular-eslint/component-class-suffix */
 import { Component, Inject, OnInit, OnDestroy, AfterViewInit, ViewChild, ViewContainerRef, ComponentFactoryResolver, ElementRef } from '@angular/core';
 import { ChangeDetectorRef } from '@angular/core';
-import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA} from '@angular/material/legacy-dialog';
+import { MatDialog as MatDialog, MatDialogRef as MatDialogRef, MAT_DIALOG_DATA as MAT_DIALOG_DATA} from '@angular/material/dialog';
 import { MatDrawer } from '@angular/material/sidenav';
 import { Subject, Subscription, switchMap, takeUntil } from 'rxjs';
 import { TranslateService } from '@ngx-translate/core';
@@ -982,6 +982,9 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
      */
     onStartCurrent() {
         this.onSaveProject();
+        if (this.projectService.cleanView(this.currentView)) {
+            this.onSaveProject();
+        }
         this.winRef.nativeWindow.open('lab', 'MyTest', 'width=800,height=640,menubar=0');
     }
     //#endregion

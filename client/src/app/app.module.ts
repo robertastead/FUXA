@@ -3,7 +3,7 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule, DomSanitizer } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { MaterialModule } from './material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ColorPickerModule } from 'ngx-color-picker';
@@ -170,7 +170,7 @@ import { RcgiService } from './_services/rcgi/rcgi.service';
 import { ToastNotifierService } from './_services/toast-notifier.service';
 import { MyFileService } from './_services/my-file.service';
 import { TagsIdsConfigComponent } from './editor/tags-ids-config/tags-ids-config.component';
-import { MAT_LEGACY_TOOLTIP_DEFAULT_OPTIONS as MAT_TOOLTIP_DEFAULT_OPTIONS, MatLegacyTooltipDefaultOptions as MatTooltipDefaultOptions } from '@angular/material/legacy-tooltip';
+import { MAT_TOOLTIP_DEFAULT_OPTIONS as MAT_TOOLTIP_DEFAULT_OPTIONS, MatTooltipDefaultOptions as MatTooltipDefaultOptions } from '@angular/material/tooltip';
 import { HtmlImageComponent } from './gauges/controls/html-image/html-image.component';
 import { NgxSchedulerComponent } from './gui-helpers/ngx-scheduler/ngx-scheduler.component';
 import { FlexDeviceTagComponent } from './gauges/gauge-property/flex-device-tag/flex-device-tag.component';
@@ -233,6 +233,8 @@ import { MatIconRegistry } from '@angular/material/icon';
 import { NodeRedFlowsComponent } from './integrations/node-red/node-red-flows/node-red-flows.component';
 import { ApiKeysListComponent } from './apikeys/api-keys-list/api-keys-list.component';
 import { ApiKeyPropertyComponent } from './apikeys/api-key-property/api-key-property.component';
+import { TagPropertyEditRedisComponent } from './device/tag-property/tag-property-edit-redis/tag-property-edit-redis.component';
+import { TagPropertyRedisScanComponent } from './device/tag-property/tag-property-edit-redis/tag-property-redis-scan/tag-property-redis-scan.component';
 
 export function createTranslateLoader(http: HttpClient) {
     return new TranslateHttpLoader(http, './assets/i18n/', '.json');
@@ -244,8 +246,7 @@ export const myCustomTooltipDefaults: MatTooltipDefaultOptions = {
     touchendHideDelay: 500,
 };
 
-@NgModule({
-    declarations: [
+@NgModule({ declarations: [
         HomeComponent,
         EditorComponent,
         HeaderComponent,
@@ -415,13 +416,13 @@ export const myCustomTooltipDefaults: MatTooltipDefaultOptions = {
         SchedulerConfirmDialogComponent,
         NodeRedFlowsComponent,
         ApiKeysListComponent,
-        ApiKeyPropertyComponent
+        ApiKeyPropertyComponent,
+        TagPropertyEditRedisComponent,
+        TagPropertyRedisScanComponent,
     ],
-    imports: [
-        BrowserModule,
+    bootstrap: [AppComponent], imports: [BrowserModule,
         FormsModule,
         ReactiveFormsModule,
-        HttpClientModule,
         routing,
         MaterialModule,
         BrowserAnimationsModule,
@@ -444,9 +445,7 @@ export const myCustomTooltipDefaults: MatTooltipDefaultOptions = {
         NgChartsModule,
         CodemirrorModule,
         NgxDaterangepickerMd.forRoot(),
-        FrameworkModule
-    ],
-    providers: [
+        FrameworkModule], providers: [
         // providersResourceService,
         ResClientService,
         ResWebApiService,
@@ -487,10 +486,9 @@ export const myCustomTooltipDefaults: MatTooltipDefaultOptions = {
         MapsLocationsService,
         LanguageService,
         DeviceAdapterService,
-        {provide: MAT_TOOLTIP_DEFAULT_OPTIONS, useValue: myCustomTooltipDefaults}
-    ],
-    bootstrap: [AppComponent]
-})
+        { provide: MAT_TOOLTIP_DEFAULT_OPTIONS, useValue: myCustomTooltipDefaults },
+        provideHttpClient(withInterceptorsFromDi())
+    ] })
 export class AppModule {
     constructor(
         iconReg: MatIconRegistry,
